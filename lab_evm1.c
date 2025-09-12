@@ -37,6 +37,12 @@ int main() {
 
     printf("Time: %.6f sec\n", result);
 
+    for (int i = 1; i < N; i++) {
+        if (arr[i - 1] > arr[i]) {
+            printf("Массив не отсортирован\n");
+            break;
+        }
+    }
     free(arr);
     return 0;
 }
