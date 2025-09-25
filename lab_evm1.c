@@ -18,7 +18,15 @@ void bubble_sort(int arr[], int N) {
 int main() {
     int N;
     printf("N: ");
-    scanf("%d", &N);
+    if (scanf("%d", &N) != 1) {
+        printf("Ошибка ввода!");
+        return 1;
+    }
+
+    if (N <= 0) {
+        printf("Некорректный размер массива!");
+        return 1;
+    }
 
     int* arr = (int*)malloc(N * sizeof(int));
     srand(12345);
