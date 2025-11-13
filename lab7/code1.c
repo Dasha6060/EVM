@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
 
 // Функция для выделения памяти под матрицу
 float** allocate_matrix(int N) {
@@ -76,13 +75,17 @@ float matrix_norm_inf(float** A, int N) {
 
 // Функция умножения
 void matrix_multiply(float** C, float** A, float** B, int N) {
-    // Иницилизируем матрицу С
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             C[i][j] = 0.0f;
-            // Вычисляем скалярное произведение i-ой строки A на j-ый столбец B
-            for (int k = 0; k < N; k++) {
-                C[i][j] += A[i][k] * B[k][j];
+        }
+    }
+
+    for (int i = 0; i < N; i++) {
+        for (int k = 0; k < N; k++) {
+            float a_ik = A[i][k];
+            for (int j = 0; j < N; j++) {
+                C[i][j] += a_ik * B[k][j];
             }
         }
     }
@@ -207,31 +210,14 @@ void print_matrix(float** A, int N) {
 }
 
 int main() {
-    int N = 4;
-    int M = 100000;
-
-    srand((unsigned int)time(NULL));
+    int N = 2048;
+    int M = 10;
 
     float** A = allocate_matrix(N);
     float** A_inv = allocate_matrix(N);
 
     initialize_random_matrix(A, N);
-
-    // printf("matrix A:\n");
-    // print_matrix(A, N);
-
-    // Замеряем время выполнения
-    clock_t start = clock();
-
     matrix_inverse_series(A_inv, A, N, M);
-
-    clock_t end = clock();
-    double duration = (double)(end - start) / CLOCKS_PER_SEC * 1000000
-
-    // printf("matrix A_inv:\n");
-    // print_matrix(A_inv, N);
-
-    printf("Time: %.0f\n", duration);
 
     free_matrix(A, N);
     free_matrix(A_inv, N);
