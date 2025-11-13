@@ -1,25 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <cblas.h>
 
-// Объявляем функции BLAS вручную чтобы избежать конфликтов
-extern void cblas_sgemm(const int Order, const int TransA, const int TransB,
-                       const int M, const int N, const int K, const float alpha,
-                       const float *A, const int lda, const float *B, const int ldb,
-                       const float beta, float *C, const int ldc);
-
-extern void cblas_saxpy(const int N, const float alpha, const float *X,
-                       const int incX, float *Y, const int incY);
-
-extern void cblas_sscal(const int N, const float alpha, float *X, const int incX);
-
-// Константы для BLAS
-#define CblasRowMajor 101
-#define CblasColMajor 102
-#define CblasNoTrans  111
-#define CblasTrans    112
-
-// Используем префикс my_ для всех функций
 float** my_allocate_matrix(int N) {
     float** matrix = (float**)malloc(N * sizeof(float*));
     for (int i = 0; i < N; i++) {
