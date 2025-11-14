@@ -209,6 +209,7 @@ void print_matrix(float** A, int N) {
     printf("\n");
 }
 
+
 int main() {
     int N = 2048;
     int M = 10;
@@ -217,11 +218,17 @@ int main() {
     float** A_inv = allocate_matrix(N);
 
     initialize_random_matrix(A, N);
+
+    // printf("matrix A:\n");
+    // print_matrix(A, N);
+
     matrix_inverse_series(A_inv, A, N, M);
+
+    // printf("matrix A_inv:\n");
+    // print_matrix(A_inv, N);
 
     free_matrix(A, N);
     free_matrix(A_inv, N);
 
     return 0;
 }
-
