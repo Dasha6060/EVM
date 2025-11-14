@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <cblas.h>
+
+void cblas_sgemm(int, int, int, int, int, int, float,
+                 const float*, int, const float*, int, float, float*, int);
+void cblas_saxpy(int, float, const float*, int, float*, int);
+void cblas_sscal(int, float, float*, int);
+
+
+enum { CblasRowMajor=101, CblasNoTrans=111 };
 
 float** my_allocate_matrix(int N) {
     float** matrix = (float**)malloc(N * sizeof(float*));
@@ -284,3 +291,4 @@ int main() {
 
     return 0;
 }
+
