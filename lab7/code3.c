@@ -7,46 +7,43 @@ void cblas_sgemm(int, int, int, int, int, int, float,
 void cblas_saxpy(int, float, const float*, int, float*, int);
 void cblas_sscal(int, float, float*, int);
 
+enum { CblasRowMajor=101, CblasNoTrans=111, CblasTrans=112 };
 
-enum { CblasRowMajor=101, CblasNoTrans=111 };
+#define MAT_ELEM(matrix, i, j, N) ((matrix)[(i) * (N) + (j)])
 
-float** my_allocate_matrix(int N) {
-    float** matrix = (float**)malloc(N * sizeof(float*));
-    for (int i = 0; i < N; i++) {
-        matrix[i] = (float*)calloc(N, sizeof(float));
-    }
-    return matrix;
+// Функция для выделения памяти под матрицу
+float* allocate_matrix(int N) {
+    return (float*)calloc(N * N, sizeof(float));
 }
 
-void my_free_matrix(float** matrix, int N) {
-    for (int i = 0; i < N; i++) {
-        free(matrix[i]);
-    }
+// Функция освобождения памяти матрицы
+void free_matrix(float* matrix) {
     free(matrix);
 }
 
-void my_identity_matrix(float** I, int N) {
+// Функция для создания единичной матрицы
+void identity_matrix(float* I, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            I[i][j] = (i == j) ? 1.0f : 0.0f;
+            MAT_ELEM(I, i, j, N) = (i == j) ? 1.0f : 0.0f;
         }
     }
 }
 
-void my_copy_matrix(float** dest, float** src, int N) {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            dest[i][j] = src[i][j];
-        }
+// Функция для копирования матрицы
+void copy_matrix(float* dest, float* src, int N) {
+    for (int i = 0; i < N * N; i++) {
+        dest[i] = src[i];
     }
 }
 
-float my_matrix_norm1(float** A, int N) {
+// Функция для вычисления первой нормы (максимальная сумма по столбцам)
+float matrix_norm1(float* A, int N) {
     float max_sum = 0.0f;
     for (int j = 0; j < N; j++) {
         float col_sum = 0.0f;
         for (int i = 0; i < N; i++) {
-            col_sum += fabsf(A[i][j]);
+            col_sum += fabsf(MAT_ELEM(A, i, j, N));
         }
         if (col_sum > max_sum) {
             max_sum = col_sum;
@@ -55,12 +52,13 @@ float my_matrix_norm1(float** A, int N) {
     return max_sum;
 }
 
-float my_matrix_norm_inf(float** A, int N) {
+// Функция для вычисления второй нормы (максимальная сумма по строкам)
+float matrix_norm_inf(float* A, int N) {
     float max_sum = 0.0f;
     for (int i = 0; i < N; i++) {
         float row_sum = 0.0f;
         for (int j = 0; j < N; j++) {
-            row_sum += fabsf(A[i][j]);
+            row_sum += fabsf(MAT_ELEM(A, i, j, N));
         }
         if (row_sum > max_sum) {
             max_sum = row_sum;
@@ -69,155 +67,67 @@ float my_matrix_norm_inf(float** A, int N) {
     return max_sum;
 }
 
-// Умножение матриц с BLAS
-void my_matrix_multiply(float** C, float** A, float** B, int N) {
-    // Преобразуем матрицы в одномерные массивы
-    float* A_flat = (float*)malloc(N * N * sizeof(float));
-    float* B_flat = (float*)malloc(N * N * sizeof(float));
-    float* C_flat = (float*)malloc(N * N * sizeof(float));
-
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            A_flat[i * N + j] = A[i][j];
-            B_flat[i * N + j] = B[i][j];
-        }
-    }
-
-    // BLAS: C = alpha * A * B + beta * C
-    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-                N, N, N, 1.0f, A_flat, N, B_flat, N, 0.0f, C_flat, N);
-
-    // Конвертируем обратно
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            C[i][j] = C_flat[i * N + j];
-        }
-    }
-
-    free(A_flat);
-    free(B_flat);
-    free(C_flat);
-}
-
-// Сложение матриц с BLAS
-void my_matrix_add(float** C, float** A, float** B, int N) {
-    float* A_flat = (float*)malloc(N * N * sizeof(float));
-    float* B_flat = (float*)malloc(N * N * sizeof(float));
-    float* C_flat = (float*)malloc(N * N * sizeof(float));
-
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            A_flat[i * N + j] = A[i][j];
-            B_flat[i * N + j] = B[i][j];
-        }
-    }
-
-    // Копируем A в C
-    for (int i = 0; i < N * N; i++) {
-        C_flat[i] = A_flat[i];
-    }
-
-    // Затем добавляем B: C = A + B
-    cblas_saxpy(N * N, 1.0f, B_flat, 1, C_flat, 1);
-
-    // Конвертируем обратно
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            C[i][j] = C_flat[i * N + j];
-        }
-    }
-
-    free(A_flat);
-    free(B_flat);
-    free(C_flat);
-}
-
-// Вычитание матриц с BLAS
-void my_matrix_sub(float** C, float** A, float** B, int N) {
-    float* A_flat = (float*)malloc(N * N * sizeof(float));
-    float* B_flat = (float*)malloc(N * N * sizeof(float));
-    float* C_flat = (float*)malloc(N * N * sizeof(float));
-
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            A_flat[i * N + j] = A[i][j];
-            B_flat[i * N + j] = B[i][j];
-        }
-    }
-
-    // Копируем A в C
-    for (int i = 0; i < N * N; i++) {
-        C_flat[i] = A_flat[i];
-    }
-
-    // C = A + (-1.0) * B
-    cblas_saxpy(N * N, -1.0f, B_flat, 1, C_flat, 1);
-
-    // Конвертируем обратно
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            C[i][j] = C_flat[i * N + j];
-        }
-    }
-
-    free(A_flat);
-    free(B_flat);
-    free(C_flat);
-}
-
-// Умножение матрицы на скаляр с BLAS
-void my_matrix_scalar_multiply(float** B, float** A, float scalar, int N) {
-    float* A_flat = (float*)malloc(N * N * sizeof(float));
-    float* B_flat = (float*)malloc(N * N * sizeof(float));
-
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            A_flat[i * N + j] = A[i][j];
-        }
-    }
-
-    // Копируем A в B
-    for (int i = 0; i < N * N; i++) {
-        B_flat[i] = A_flat[i];
-    }
-
-    // BLAS: скалярное умножение
-    cblas_sscal(N * N, scalar, B_flat, 1);
-
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            B[i][j] = B_flat[i * N + j];
-        }
-    }
-
-    free(A_flat);
-    free(B_flat);
-}
-
 // Функция транспонирования матрицы
-void my_matrix_transpose(float** AT, float** A, int N) {
+void matrix_transpose(float* AT, float* A, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            AT[i][j] = A[j][i];
+            MAT_ELEM(AT, i, j, N) = MAT_ELEM(A, j, i, N);
         }
     }
 }
 
-// Основная функция обращения матрицы с BLAS
-void my_matrix_inverse_series(float** A_inv, float** A, int N, int M) {
-    float** I = my_allocate_matrix(N);
-    float** AT = my_allocate_matrix(N);
-    float** B = my_allocate_matrix(N);
-    float** BA = my_allocate_matrix(N);
-    float** R = my_allocate_matrix(N);
-    float** R_power = my_allocate_matrix(N);
-    float** temp = my_allocate_matrix(N);
-    float** sum = my_allocate_matrix(N);
+//умножение матриц с транспонированием и BLAS
+void matrix_multiply(float* C, float* A, float* B, int N) {
+    // Транспонируем матрицу B для лучшей локализации данных
+    float* BT = allocate_matrix(N);
+    matrix_transpose(BT, B, N);
 
-    my_identity_matrix(I, N);
+    // Инициализируем матрицу C нулями
+    for (int i = 0; i < N * N; i++) {
+        C[i] = 0.0f;
+    }
 
-    float norm1 = my_matrix_norm1(A, N);
-    float norm_inf = my_matrix_norm_inf(A, N);
+    // BLAS: C = alpha * A * B^T + beta * C
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
+                N, N, N, 1.0f, A, N, BT, N, 0.0f, C, N);
+
+    free_matrix(BT);
+}
+
+// Сложение матриц
+void matrix_add(float* C, float* A, float* B, int N) {
+    copy_matrix(C, A, N);
+    cblas_saxpy(N * N, 1.0f, B, 1, C, 1);
+}
+
+// Вычитание матриц
+void matrix_sub(float* C, float* A, float* B, int N) {
+    copy_matrix(C, A, N);
+    // C = A + (-1.0) * B
+    cblas_saxpy(N * N, -1.0f, B, 1, C, 1);
+}
+
+// Умножение матрицы на скаляр
+void matrix_scalar_multiply(float* B, float* A, float scalar, int N) {
+    copy_matrix(B, A, N);
+    cblas_sscal(N * N, scalar, B, 1);
+}
+
+// Основная функция обращения матрицы
+void my_matrix_inverse_series(float* A_inv, float* A, int N, int M) {
+    float* I = allocate_matrix(N);
+    float* AT = allocate_matrix(N);
+    float* B = allocate_matrix(N);
+    float* BA = allocate_matrix(N);
+    float* R = allocate_matrix(N);
+    float* R_power = allocate_matrix(N);
+    float* temp = allocate_matrix(N);
+    float* sum = allocate_matrix(N);
+
+    identity_matrix(I, N);
+
+    float norm1 = matrix_norm1(A, N);
+    float norm_inf = matrix_norm_inf(A, N);
     float denominator = norm1 * norm_inf;
 
     if (fabsf(denominator) < 1e-12f) {
@@ -226,52 +136,53 @@ void my_matrix_inverse_series(float** A_inv, float** A, int N, int M) {
     }
 
     // Вычисляем B
-    my_matrix_transpose(AT, A, N);
-    my_matrix_scalar_multiply(B, AT, 1.0f / denominator, N);
+    matrix_transpose(AT, A, N);
+    matrix_scalar_multiply(B, AT, 1.0f / denominator, N);
 
-    my_matrix_multiply(BA, B, A, N);
+    // Вычисляем BA = B × A
+    matrix_multiply(BA, B, A, N);
 
     // R = I - BA
-    my_matrix_sub(R, I, BA, N);
+    matrix_sub(R, I, BA, N);
 
     // Инициализируем сумму
-    my_copy_matrix(sum, I, N);
+    copy_matrix(sum, I, N);
 
     // Инициализируем R_power
-    my_copy_matrix(R_power, R, N);
+    copy_matrix(R_power, R, N);
 
     // Вычисляем ряд
     for (int k = 1; k < M; k++) {
         // Добавляем текущую степень R к сумме
-        my_matrix_add(temp, sum, R_power, N);
-        my_copy_matrix(sum, temp, N);
+        matrix_add(temp, sum, R_power, N);
+        copy_matrix(sum, temp, N);
 
         if (k < M - 1) {
-            // Вычисляем следующую степень: R_power = R_power * R
-            my_matrix_multiply(temp, R_power, R, N);
-            my_copy_matrix(R_power, temp, N);
+            // Вычисляем следующую степень: R_power = R_power × R
+            matrix_multiply(temp, R_power, R, N);
+            copy_matrix(R_power, temp, N);
         }
     }
 
-    // A_inv = sum * B
-    my_matrix_multiply(temp, sum, B, N);
-    my_copy_matrix(A_inv, temp, N);
+    // A_inv = sum × B
+    matrix_multiply(temp, sum, B, N);
+    copy_matrix(A_inv, temp, N);
 
-    my_free_matrix(I, N);
-    my_free_matrix(AT, N);
-    my_free_matrix(B, N);
-    my_free_matrix(BA, N);
-    my_free_matrix(R, N);
-    my_free_matrix(R_power, N);
-    my_free_matrix(temp, N);
-    my_free_matrix(sum, N);
+    free_matrix(I);
+    free_matrix(AT);
+    free_matrix(B);
+    free_matrix(BA);
+    free_matrix(R);
+    free_matrix(R_power);
+    free_matrix(temp);
+    free_matrix(sum);
 }
 
 // Функция для инициализации матрицы на рандоме
-void my_initialize_random_matrix(float** A, int N) {
+void my_initialize_random_matrix(float* A, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            A[i][j] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+            MAT_ELEM(A, i, j, N) = (float)rand() / RAND_MAX * 2.0f - 1.0f;
         }
     }
 }
@@ -280,15 +191,14 @@ int main() {
     int N = 2048;
     int M = 10;
 
-    float** A = my_allocate_matrix(N);
-    float** A_inv = my_allocate_matrix(N);
+    float* A = allocate_matrix(N);
+    float* A_inv = allocate_matrix(N);
 
     my_initialize_random_matrix(A, N);
     my_matrix_inverse_series(A_inv, A, N, M);
 
-    my_free_matrix(A, N);
-    my_free_matrix(A_inv, N);
+    free_matrix(A);
+    free_matrix(A_inv);
 
     return 0;
 }
-
