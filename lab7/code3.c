@@ -76,7 +76,7 @@ void matrix_transpose(float* AT, float* A, int N) {
     }
 }
 
-//умножение матриц с транспонированием и BLAS
+//умножение матриц 
 void matrix_multiply(float* C, float* A, float* B, int N) {
     float* BT = allocate_matrix(N);
     matrix_transpose(BT, B, N);
