@@ -3,50 +3,43 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define MAT_ELEM(matrix, i, j, N) ((matrix)[(i) * (N) + (j)])
+
 // Функция для выделения памяти под матрицу
-float** allocate_matrix(int N) {
-    float** matrix = (float**)malloc(N * sizeof(float*)); // Mассив указателей на float* - строки матрицы
-    for (int i = 0; i < N; i++) {
-        matrix[i] =  (float*)malloc(N * sizeof(float)); // Выделяем память для каждой строки матрицы
-    }
-    return matrix;
+float* allocate_matrix(int N) {
+    return (float*)calloc(N * N, sizeof(float)); // Один непрерывный блок N x N
 }
 
 // Функция освобождения памяти матрицы
-void free_matrix(float** matrix, int N) {
-    for (int i = 0; i < N; i++) {
-        free(matrix[i]);
-    }
+void free_matrix(float* matrix) {
     free(matrix);
 }
 
 // Функция для создания единичной матрицы
-void identity_matrix(float** I, int N) {
+void identity_matrix(float* I, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             //Если находимся на главной диагонали, ставим 1
-            I[i][j] = (i == j) ? 1.0f : 0.0f;
+            MAT_ELEM(I, i, j, N) = (i == j) ? 1.0f : 0.0f;
         }
     }
 }
 
 // Функция для копирования матрицы
-void copy_matrix(float** dest, float** src, int N) {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            dest[i][j] = src[i][j];
-        }
+void copy_matrix(float* dest, float* src, int N) {
+    for (int i = 0; i < N * N; i++) {
+        dest[i] = src[i];
     }
 }
 
 // Функция для вычисления первой нормы (максимальная сумма по столбцам)
-float matrix_norm1(float** A, int N) {
+float matrix_norm1(float* A, int N) {
     float max_sum = 0.0f;
 
     for (int j = 0; j < N; j++) {
         float col_sum = 0.0f;
         for (int i = 0; i < N; i++) {
-            col_sum += fabsf(A[i][j]);
+            col_sum += fabsf(MAT_ELEM(A, i, j, N));
         }
         if (col_sum > max_sum) {
             max_sum = col_sum;
@@ -57,13 +50,13 @@ float matrix_norm1(float** A, int N) {
 }
 
 // Функция для вычисления второй нормы (максимальная сумма по строкам)
-float matrix_norm_inf(float** A, int N) {
+float matrix_norm_inf(float* A, int N) {
     float max_sum = 0.0f;
 
     for (int i = 0; i < N; i++) {
         float row_sum = 0.0f;
         for (int j = 0; j < N; j++) {
-            row_sum += fabsf(A[i][j]);
+            row_sum += fabsf(MAT_ELEM(A, i, j, N));
         }
         if (row_sum > max_sum) {
             max_sum = row_sum;
@@ -73,70 +66,75 @@ float matrix_norm_inf(float** A, int N) {
     return max_sum;
 }
 
-// Функция умножения
-void matrix_multiply(float** C, float** A, float** B, int N) {
+// Функция транспонирования
+void matrix_transpose(float* AT, float* A, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            C[i][j] = 0.0f;
-        }
-    }
-
-    for (int i = 0; i < N; i++) {
-        for (int k = 0; k < N; k++) {
-            float a_ik = A[i][k];
-            for (int j = 0; j < N; j++) {
-                C[i][j] += a_ik * B[k][j];
-            }
+            MAT_ELEM(AT, i, j, N) = MAT_ELEM(A, j, i, N);
         }
     }
 }
 
-// Функция сложения
-void matrix_add(float** C, float** A, float** B, int N) {
+void matrix_multiply(float* C, float* A, float* B, int N) {
+    float* BT = allocate_matrix(N);
+    matrix_transpose(BT, B, N);
+
+    for (int i = 0; i < N * N; i++) {
+        C[i] = 0.0f;
+    }
+
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            C[i][j] = A[i][j] + B[i][j];
+            float sum = 0.0f;
+            for (int k = 0; k < N; k++) {
+                float a_ik = MAT_ELEM(A, i, k, N);
+                float bt_jk = MAT_ELEM(BT, j, k, N);
+                sum += a_ik * bt_jk;
+            }
+            MAT_ELEM(C, i, j, N) = sum;
+        }
+    }
+
+    free_matrix(BT);
+}
+
+// Функция сложения
+void matrix_add(float* C, float* A, float* B, int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            MAT_ELEM(C, i, j, N) = MAT_ELEM(A, i, j, N) + MAT_ELEM(B, i, j, N);
         }
     }
 }
 
 // Функция вычитания
-void matrix_sub(float** C, float** A, float** B, int N) {
+void matrix_sub(float* C, float* A, float* B, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            C[i][j] = A[i][j] - B[i][j];
+            MAT_ELEM(C, i, j, N) = MAT_ELEM(A, i, j, N) - MAT_ELEM(B, i, j, N);
         }
     }
 }
 
 // Функция умножения на скаляр
-void matrix_scalar_multiply(float** B, float** A, float scalar, int N) {
+void matrix_scalar_multiply(float* B, float* A, float scalar, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            B[i][j] = scalar * A[i][j];
-        }
-    }
-}
-
-// Функция транспонирования
-void matrix_transpose(float** AT, float** A, int N) {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            AT[i][j] = A[j][i];
+            MAT_ELEM(B, i, j, N) = scalar * MAT_ELEM(A, i, j, N);
         }
     }
 }
 
 // Функция обращения матрицы методом разложения в ряд
-void matrix_inverse_series(float** A_inv, float** A, int N, int M) {
-    float** I = allocate_matrix(N);
-    float** AT = allocate_matrix(N);
-    float** B = allocate_matrix(N);
-    float** BA = allocate_matrix(N);
-    float** R = allocate_matrix(N);
-    float** R_power = allocate_matrix(N);
-    float** temp = allocate_matrix(N);
-    float** sum = allocate_matrix(N);
+void matrix_inverse_series(float* A_inv, float* A, int N, int M) {
+    float* I = allocate_matrix(N);
+    float* AT = allocate_matrix(N);
+    float* B = allocate_matrix(N);
+    float* BA = allocate_matrix(N);
+    float* R = allocate_matrix(N);
+    float* R_power = allocate_matrix(N);
+    float* temp = allocate_matrix(N);
+    float* sum = allocate_matrix(N);
 
     // Создаем единичную матрицу
     identity_matrix(I, N);
@@ -179,43 +177,42 @@ void matrix_inverse_series(float** A_inv, float** A, int N, int M) {
     matrix_multiply(temp, sum, B, N);
     copy_matrix(A_inv, temp, N);
 
-    free_matrix(I, N);
-    free_matrix(AT, N);
-    free_matrix(B, N);
-    free_matrix(BA, N);
-    free_matrix(R, N);
-    free_matrix(R_power, N);
-    free_matrix(temp, N);
-    free_matrix(sum, N);
+    free_matrix(I);
+    free_matrix(AT);
+    free_matrix(B);
+    free_matrix(BA);
+    free_matrix(R);
+    free_matrix(R_power);
+    free_matrix(temp);
+    free_matrix(sum);
 }
 
 // Функция инициализации матрицы на рандоме
-void initialize_random_matrix(float** A, int N) {
+void initialize_random_matrix(float* A, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            A[i][j] = (float)rand() / RAND_MAX * 2.0f - 1.0f; // [-1, 1]
+            MAT_ELEM(A, i, j, N) = (float)rand() / RAND_MAX * 2.0f - 1.0f; // [-1, 1]
         }
     }
 }
 
 // Функция печати матрицы
-void print_matrix(float** A, int N) {
+void print_matrix(float* A, int N) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            printf("%f ", A[i][j]);
+            printf("%f ", MAT_ELEM(A, i, j, N));
         }
         printf("\n");
     }
     printf("\n");
 }
 
-
 int main() {
     int N = 2048;
     int M = 10;
 
-    float** A = allocate_matrix(N);
-    float** A_inv = allocate_matrix(N);
+    float* A = allocate_matrix(N);
+    float* A_inv = allocate_matrix(N);
 
     initialize_random_matrix(A, N);
 
@@ -227,8 +224,8 @@ int main() {
     // printf("matrix A_inv:\n");
     // print_matrix(A_inv, N);
 
-    free_matrix(A, N);
-    free_matrix(A_inv, N);
+    free_matrix(A);
+    free_matrix(A_inv);
 
     return 0;
 }
